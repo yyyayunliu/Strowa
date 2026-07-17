@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f7f3e8" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="description" content="Strowa：无需注册的临时亲子相遇地图" />
+  <title>Strowa · Meet nearby families</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIINfQ3ynh5n2wK6lE4w8YiwxZtZ1e0Vf0E="
+    crossorigin=""
+  />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand" aria-label="Strowa">
+        <span class="brand-mark">S</span>
+        <div>
+          <strong data-i18n="brand">Strowa</strong>
+          <small>MEET NEARBY FAMILIES</small>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="modeButton" class="mode-chip" type="button" aria-label="Connection mode">
+          <span class="status-dot"></span>
+          <span id="modeLabel">演示模式</span>
+        </button>
+        <button id="languageButton" class="icon-button" type="button" aria-label="Switch language">EN</button>
+      </div>
+    </header>
+
+    <main>
+      <div id="map" aria-label="Map of nearby stroller meetups"></div>
+
+      <button id="locateButton" class="map-control locate-button" type="button" aria-label="Locate me">⌖</button>
+
+      <section class="privacy-banner" id="privacyBanner">
+        <span>◎</span>
+        <p data-i18n="privacyBanner">只显示公共地点和临时状态，不上传你的实时轨迹。</p>
+        <button id="dismissPrivacy" type="button" aria-label="Dismiss">×</button>
+      </section>
+
+      <section class="bottom-sheet" aria-label="Nearby families">
+        <div class="sheet-handle"></div>
+        <div class="sheet-heading">
+          <div>
+            <p class="eyebrow" data-i18n="nearbyNow">附近现在</p>
+            <h1><span id="activeCount">0</span> <span data-i18n="familiesOut">个家庭在外面</span></h1>
+          </div>
+          <button id="refreshButton" class="text-button" type="button" data-i18n="refresh">刷新</button>
+        </div>
+
+        <div id="demoNotice" class="demo-notice hidden">
+          <span>✦</span>
+          <p data-i18n="demoNotice">这些是演示家庭。配置共享后端后，朋友的真实签到会显示在这里。</p>
+        </div>
+
+        <div id="inbox" class="inbox hidden">
+          <div class="inbox-header">
+            <strong data-i18n="hellosReceived">收到的招呼</strong>
+            <button id="clearWavesButton" type="button" data-i18n="clear">清除</button>
+          </div>
+          <div id="waveList"></div>
+        </div>
+
+        <div id="checkinList" class="checkin-list"></div>
+
+        <div id="emptyState" class="empty-state hidden">
+          <div class="empty-icon">○</div>
+          <h2 data-i18n="emptyTitle">附近暂时没人签到</h2>
+          <p data-i18n="emptyBody">你可以先出现。朋友打开同一个网页后，就会看到你所在的公共地点。</p>
+        </div>
+      </section>
+
+      <button id="openCheckinButton" class="primary-fab" type="button">
+        <span>＋</span><span data-i18n="checkIn">Start strolling</span>
+      </button>
+    </main>
+  </div>
+
+  <dialog id="checkinDialog" class="dialog">
+    <form id="checkinForm" method="dialog">
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow" data-i18n="temporaryCheckin">临时签到</p>
+          <h2 data-i18n="whereAreYou">你们在哪里溜娃？</h2>
+        </div>
+        <button class="dialog-close" value="cancel" type="submit" aria-label="Close">×</button>
+      </div>
+
+      <label>
+        <span data-i18n="publicPlace">公共地点</span>
+        <select id="placeSelect" required></select>
+      </label>
+
+      <div class="map-pick-row">
+        <button id="pickOnMapButton" class="secondary-button" type="button" data-i18n="pickOnMap">在地图上选点</button>
+        <small id="pickedLocationLabel" data-i18n="publicOnly">请选择公园、游乐场或公共空间</small>
+      </div>
+
+      <label>
+        <span data-i18n="alias">临时称呼</span>
+        <input id="aliasInput" maxlength="30" autocomplete="off" placeholder="例如：幽遒爸爸" data-i18n-placeholder="aliasPlaceholder" />
+      </label>
+
+      <div class="form-grid">
+        <label>
+          <span data-i18n="childAge">宝宝年龄段</span>
+          <select id="ageSelect" required>
+            <option value="0-6m">0–6 months</option>
+            <option value="6-12m" selected>6–12 months</option>
+            <option value="1-2y">1–2 years</option>
+            <option value="2-4y">2–4 years</option>
+            <option value="4y+">4+ years</option>
+          </select>
+        </label>
+        <label>
+          <span data-i18n="duration">显示多久</span>
+          <select id="durationSelect" required>
+            <option value="30">30 min</option>
+            <option value="60" selected>60 min</option>
+            <option value="90">90 min</option>
+          </select>
+        </label>
+      </div>
+
+      <fieldset>
+        <legend data-i18n="whatNow">现在想做什么？</legend>
+        <div class="intent-grid">
+          <label class="intent-option"><input type="radio" name="intent" value="walk" checked /><span>🚶 <b data-i18n="walk">一起散步</b></span></label>
+          <label class="intent-option"><input type="radio" name="intent" value="play" /><span>🛝 <b data-i18n="play">一起玩</b></span></label>
+          <label class="intent-option"><input type="radio" name="intent" value="chat" /><span>☕ <b data-i18n="chat">聊聊天</b></span></label>
+          <label class="intent-option"><input type="radio" name="intent" value="quiet" /><span>😴 <b data-i18n="quiet">安静走走</b></span></label>
+        </div>
+      </fieldset>
+
+      <label>
+        <span data-i18n="noteOptional">一句话（可选）</span>
+        <textarea id="noteInput" maxlength="120" rows="2" placeholder="例如：我们在喷泉旁边，推着绿色婴儿车" data-i18n-placeholder="notePlaceholder"></textarea>
+      </label>
+
+      <p class="safety-note" data-i18n="safetyNote">请勿填写孩子姓名、电话号码、住址或精确行程。只在公共场所见面。</p>
+
+      <button id="submitCheckinButton" class="primary-button" type="submit" data-i18n="publishCheckin">发布临时签到</button>
+    </form>
+  </dialog>
+
+  <dialog id="waveDialog" class="dialog compact-dialog">
+    <form id="waveForm" method="dialog">
+      <input id="waveTargetId" type="hidden" />
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow" data-i18n="sayHello">匿名打招呼</p>
+          <h2 id="waveTargetTitle">👋</h2>
+        </div>
+        <button class="dialog-close" value="cancel" type="submit" aria-label="Close">×</button>
+      </div>
+      <label>
+        <span data-i18n="yourAlias">你的临时称呼</span>
+        <input id="waveAliasInput" maxlength="30" autocomplete="off" required />
+      </label>
+      <label>
+        <span data-i18n="message">消息</span>
+        <select id="waveMessageSelect">
+          <option value="我们也在附近，要不要一起走一会儿？">我们也在附近，要不要一起走一会儿？</option>
+          <option value="我们准备过去，可以打个招呼吗？">我们准备过去，可以打个招呼吗？</option>
+          <option value="宝宝年龄差不多，想一起玩一会儿吗？">宝宝年龄差不多，想一起玩一会儿吗？</option>
+        </select>
+      </label>
+      <button class="primary-button" type="submit" data-i18n="sendHello">发送招呼</button>
+    </form>
+  </dialog>
+
+  <dialog id="setupDialog" class="dialog compact-dialog">
+    <form method="dialog">
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow">PROTOTYPE MODE</p>
+          <h2 data-i18n="setupTitle">当前是单机演示</h2>
+        </div>
+        <button class="dialog-close" value="cancel" type="submit" aria-label="Close">×</button>
+      </div>
+      <p data-i18n="setupBody">单机模式适合预览界面，但不同手机无法互相看到。按照 README 配置 Supabase 后，会自动切换到共享测试模式。</p>
+      <button class="primary-button" value="cancel" type="submit" data-i18n="understood">知道了</button>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="./config.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
